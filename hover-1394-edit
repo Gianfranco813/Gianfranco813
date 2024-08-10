@@ -1,0 +1,1042 @@
+build/*
+!build/hover.hex
+Makefile_v2
+*.ipch
+.vscode/ipch/77bf554877529af4/mmap_address.bin
+Makefile_home
+Makefile_work
+ Binary file addedBIN +8 Bytes 
+.vscode/ipch/cdd8ad569c896775/mmap_address.bin
+Binary file not shown.
+  62 changes: 35 additions & 27 deletions62  
+Inc/config.h
+Original file line number	Diff line number	Diff line change
+#pragma once
+#include "stm32f1xx_hal.h"
+// ############################### DO-NOT-TOUCH SETTINGS ###############################
+#define PWM_FREQ         16000      // PWM frequency in Hz
+#define DEAD_TIME        32         // PWM deadtime
+#define DELAY_IN_MAIN_LOOP 5        // in ms. default 5. it is independent of all the timing critical stuff. do not touch if you do not know what you are doing.
+#define TIMEOUT          5          // number of wrong / missing input commands before emergency off
+// ############################### GENERAL ###############################
+// How to calibrate: connect GND and RX of a 3.3v uart-usb adapter to the right sensor board cable (be careful not to use the red wire of the cable. 15v will destroye verything.). if you are using nunchuck, disable it temporarily. enable DEBUG_SERIAL_USART3 and DEBUG_SERIAL_ASCII use asearial terminal.
+// Battery voltage calibration: connect power source. see <How to calibrate>. write value nr 5 to BAT_CALIB_ADC. make and flash firmware. then you can verify voltage on value 6 (devide it by 100.0 to get calibrated voltage).
+#define BAT_CALIB_REAL_VOLTAGE        41.0       // input voltage measured by multimeter  
+#define BAT_CALIB_ADC                 1654       // adc-value measured by mainboard (value nr 5 on UART debug output)
+#define BAT_NUMBER_OF_CELLS     10        // normal Hoverboard battery: 10s
+#define BAT_LOW_LVL1_ENABLE     0         // to beep or not to beep, 1 or 0
+#define BAT_LOW_LVL1            3.6       // gently beeps at this voltage level. [V/cell]
+#define BAT_LOW_LVL2_ENABLE     1         // to beep or not to beep, 1 or 0
+#define BAT_LOW_LVL2            3.5       // your battery is almost empty. Charge now! [V/cell]
+#define BAT_LOW_DEAD            3.37      // undervoltage poweroff. (while not driving) [V/cell]
+#define DC_CUR_LIMIT     15         // DC current limit in amps per motor. so 15 means it will draw 30A out of your battery. it does not disable motors, it is a soft current limit.
+// Board overheat detection: the sensor is inside the STM/GD chip. it is very inaccurate without calibration (up to 45°C). so only enable this funcion after calibration! let your board cool down. see <How to calibrate>. get the real temp of the chip by thermo cam or another temp-sensor taped on top of the chip and write it to TEMP_CAL_LOW_DEG_C. write debug value 8 to TEMP_CAL_LOW_ADC. drive around to warm up the board. it should be at least 20°C warmer. repeat it for the HIGH-values. enable warning and/or poweroff and make and flash firmware.
+#define TEMP_CAL_LOW_ADC        1655      // temperature 1: ADC value
+#define TEMP_CAL_LOW_DEG_C      35.8      // temperature 1: measured temperature [°C]
+#define TEMP_CAL_HIGH_ADC       1588      // temperature 2: ADC value
+#define TEMP_CAL_HIGH_DEG_C     48.9      // temperature 2: measured temperature [°C]
+#define TEMP_WARNING_ENABLE     0         // to beep or not to beep, 1 or 0, DO NOT ACTIVITE WITHOUT CALIBRATION!
+#define TEMP_WARNING            60        // annoying fast beeps [°C]
+#define TEMP_POWEROFF_ENABLE    0         // to poweroff or not to poweroff, 1 or 0, DO NOT ACTIVITE WITHOUT CALIBRATION!
+#define TEMP_POWEROFF           65        // overheat poweroff. (while not driving) [°C]
+#define INACTIVITY_TIMEOUT 8        // minutes of not driving until poweroff. it is not very precise.
+// ############################### LCD DEBUG ###############################
+//define DEBUG_I2C_LCD             // standard 16x2 or larger text-lcd via i2c-converter on right sensor board cable
+// ############################### SERIAL DEBUG ###############################
+//#define DEBUG_SERIAL_USART3         // right sensor board cable, disable if I2C (nunchuck or lcd) is used!
+#define DEBUG_BAUD       115200     // UART baud rate
+//#define DEBUG_SERIAL_SERVOTERM
+#define DEBUG_SERIAL_ASCII          // "1:345 2:1337 3:0 4:0 5:0 6:0 7:0 8:0\r\n"
+// ############################### INPUT ###############################
+// ###### CONTROL VIA UART (serial) ######
+//#define CONTROL_SERIAL_USART2       // left sensor board cable, disable if ADC or PPM is used!
+#define CONTROL_BAUD       19200    // control via usart from eg an Arduino or raspberry
+// for Arduino, use void loop(void){ Serial.write((uint8_t *) &steer, sizeof(steer)); Serial.write((uint8_t *) &speed, sizeof(speed));delay(20); }
+// ###### CONTROL VIA RC REMOTE PPM ######
+// left sensor board cable. Channel 1: steering, Channel 2: speed.
+//#define CONTROL_PPM                 // use PPM-Sum as input. disable DEBUG_SERIAL_USART2!
+//#define PPM_NUM_CHANNELS 6          // total number of PPM channels to receive, even if they are not used.
+// ###### CONTROL VIA RC REMOTE PWM ######
+// left sensor board cable. Connect PA2 to channel 1 and PA3 to channel 2 on receiver.
+// Channel 1: steering, Channel 2: speed.
+#define CONTROL_PWM                 // use RC PWM as input. disable DEBUG_SERIAL_USART2!
+#define PWM_DEADBAND 100            // How much of the center position is considered 'center' (100 = values -100 to 100 are considered 0)
+#define PWM_DEADBAND 0            // How much of the center position is considered 'center' (100 = values -100 to 100 are considered 0)
+// Min / Max values of each channel (use DEBUG to determine these values)
+#define PWM_CH1_MAX 1000            // (0 - 1000)
+#define PWM_CH1_MIN -1000           // (-1000 - 0)
+#define PWM_CH2_MAX 500             // (0 - 1000)
+#define PWM_CH2_MIN -800            // (-1000 - 0)
+#define PWM_CH2_MAX 1000             // (0 - 1000)
+#define PWM_CH2_MIN -1000            // (-1000 - 0)
+
+
+
+// ###### RIGHT SENSOR BOARD CABLE BUTTONS ######
+// right sensor board cable. Only read once during startup
+#define BUTTONS_RIGHT                 // use right sensor board cable for button inputs. Disable DEBUG_SERIAL_USART3!
+// ###### CONTROL VIA TWO POTENTIOMETERS ######
+// ADC-calibration to cover the full poti-range: connect potis to left sensor board cable (0 to 3.3V) (do NOT use the red 15V wire in the cable!). see <How to calibrate>. turn the potis to minimum position, write value 1 to ADC1_MIN and value 2 to ADC2_MIN. turn to maximum position and repeat it for ADC?_MAX. make, flash and test it.
+//#define CONTROL_ADC                 // use ADC as input. disable DEBUG_SERIAL_USART2!
+//#define ADC1_MIN 0                // min ADC1-value while poti at minimum-position (0 - 4095)
+//#define ADC1_MAX 4095               // max ADC1-value while poti at maximum-position (0 - 4095)
+//#define ADC2_MIN 0                // min ADC2-value while poti at minimum-position (0 - 4095)
+//#define ADC2_MAX 4095               // max ADC2-value while poti at maximum-position (0 - 4095)
+// ###### CONTROL VIA NINTENDO NUNCHUCK ######
+// left sensor board cable. keep cable short, use shielded cable, use ferrits, stabalize voltage in nunchuck, use the right one of the 2 types of nunchucks, add i2c pullups. use original nunchuck. most clones does not work very well.
+//#define CONTROL_NUNCHUCK            // use nunchuck as input. disable DEBUG_SERIAL_USART3!
+// ############################### DRIVING BEHAVIOR ###############################
+// inputs:
+// - cmd1 and cmd2: analog normalized input values. -1000 to 1000
+// - button1 and button2: digital input values. 0 or 1
+// - adc_buffer.l_tx2 and adc_buffer.l_rx2: unfiltered ADC values (you do not need them). 0 to 4095
+// outputs:
+// - speedR and speedL: normal driving -1000 to 1000
+// - weakr and weakl: field weakening for extra boost at high speed (speedR > 700 and speedL > 700). 0 to ~400
+
+#define FILTER              0.1  // lower value == softer filter. do not use values <0.01, you will get float precision issues.
+#define SPEED_COEFFICIENT   1  // higher value == stronger. 0.0 to ~2.0?
+#define STEER_COEFFICIENT   0.0  // higher value == stronger. if you do not want any steering, set it to 0.0; 0.0 to 1.0
+#define STEER_COEFFICIENT   0.5  // higher value == stronger. if you do not want any steering, set it to 0.0; 0.0 to 1.0
+#define INVERT_R_DIRECTION
+#define INVERT_L_DIRECTION
+#define BEEPS_BACKWARD 0    // 0 or 1
+#define BRAKE_FILTER        0.01f // Replaces FILTER while braking
+#define KIDDIE_MODE_REDUCTION 0.5f  // Reduce max speed and acceleration based on switch 
+#define ADDITIONAL_CODE
+
+//Turbo boost at high speeds while button1 is pressed:
+//#define ADDITIONAL_CODE \
+if (button1 && speedR > 700) { /* field weakening at high speeds */ \
+  weakl = cmd1 - 700; /* weak should never exceed 400 or 450 MAX!! */ \
+  weakr = cmd1 - 700; } \
+else { \
+  weakl = 0; \
+//#define ADDITIONAL_CODE 
+/*
+if (button1 && speedR > 700) { // field weakening at high speeds 
+  weakl = cmd1 - 700; // weak should never exceed 400 or 450 MAX!! 
+  weakr = cmd1 - 700; } 
+else { 
+  weakl = 0; 
+  weakr = 0; }
+*/
+
+// ###### SIMPLE BOBBYCAR ######
+// for better bobbycar code see: https://github.com/larsmm/hoverboard-firmware-hack-bbcar
+// #define FILTER              0.1
+// #define SPEED_COEFFICIENT   -1
+// #define STEER_COEFFICIENT   0
+
+// #define ADDITIONAL_CODE \
+if (button1 && speedR < 300) { /* drive backwards */ \
+  speedR = speedR * -0.2f;   \
+  speedL = speedL * -0.2f; } \
+else { \
+  direction = 1; } \
+if (button1 && speedR > 700) { /* field weakening at high speeds */ \
+  weakl = speedR - 600; /* weak should never exceed 400 or 450 MAX!! */ \
+  weakr = speedR - 600; } \
+else { \
+  weakl = 0; \
+  weakr = 0; }
+// #define ADDITIONAL_CODE 
+/*
+if (button1 && speedR < 300) { // drive backwards
+  speedR = speedR * -0.2f;   
+  speedL = speedL * -0.2f; } 
+else { 
+  direction = 1; } 
+if (button1 && speedR > 700) { // field weakening at high speeds
+  weakl = speedR - 600; // weak should never exceed 400 or 450 MAX!!
+  weakr = speedR - 600; } 
+else { 
+  weakl = 0; 
+  weakr = 0; 
+}
+*/
+
+// ###### ARMCHAIR ######
+// #define FILTER              0.05
+// #define SPEED_COEFFICIENT   0.5
+// #define STEER_COEFFICIENT   -0.2
+
+// #define ADDITIONAL_CODE if (button1 && scale > 0.8) { /* field weakening at high speeds */ \
+  weakl = speedL - 600; /* weak should never exceed 400 or 450 MAX!! */ \
+  weakr = speedR - 600; } \
+else {\
+  weakl = 0;\
+//#define ADDITIONAL_CODE 
+/*
+if (button1 && scale > 0.8) { // field weakening at high speeds
+  weakl = speedL - 600; // weak should never exceed 400 or 450 MAX!!
+  weakr = speedR - 600; } 
+else {
+  weakl = 0;
+  weakr = 0;
+}*/
+
+// ############################### VALIDATE SETTINGS ###############################
+
+#if defined CONTROL_SERIAL_USART2 && defined CONTROL_ADC
+  #error CONTROL_ADC and CONTROL_SERIAL_USART2 not allowed. it is on the same cable.
+#endif
+#if defined CONTROL_SERIAL_USART2 && defined CONTROL_PPM
+  #error CONTROL_PPM and CONTROL_SERIAL_USART2 not allowed. it is on the same cable.
+#endif
+#if defined DEBUG_SERIAL_USART3 && defined CONTROL_NUNCHUCK
+  #error CONTROL_NUNCHUCK and DEBUG_SERIAL_USART3 not allowed. it is on the same cable.
+#endif
+#if defined DEBUG_SERIAL_USART3 && defined DEBUG_I2C_LCD
+  #error DEBUG_I2C_LCD and DEBUG_SERIAL_USART3 not allowed. it is on the same cable.
+#endif
+#if defined CONTROL_PPM && defined CONTROL_ADC && defined CONTROL_NUNCHUCK || defined CONTROL_PPM && defined CONTROL_ADC || defined CONTROL_ADC && defined CONTROL_NUNCHUCK || defined CONTROL_PPM && defined CONTROL_NUNCHUCK
+  #error only 1 input method allowed. use CONTROL_PPM or CONTROL_ADC or CONTROL_NUNCHUCK.
+#endif
+ 176 changes: 0 additions & 176 deletions176  
+Makefile_work
+This file was deleted.
+
+  45 changes: 19 additions & 26 deletions45  
+Src/control.c
+Original file line number	Diff line number	Diff line change
+#include "stm32f1xx_hal.h"
+#include "defines.h"
+#include "setup.h"
+#include "config.h"
+#include <stdbool.h>
+#include <string.h>
+TIM_HandleTypeDef TimHandle;
+TIM_HandleTypeDef TimHandle2;
+uint8_t ppm_count = 0;
+uint8_t pwm_count = 0;
+uint32_t timeout = 100;
+uint8_t nunchuck_data[6] = {0};
+uint8_t i2cBuffer[2];
+extern I2C_HandleTypeDef hi2c2;
+DMA_HandleTypeDef hdma_i2c2_rx;
+DMA_HandleTypeDef hdma_i2c2_tx;
+#ifdef CONTROL_PPM
+uint16_t ppm_captured_value[PPM_NUM_CHANNELS + 1] = {500, 500};
+uint16_t ppm_captured_value_buffer[PPM_NUM_CHANNELS+1] = {500, 500};
+uint32_t ppm_timeout = 0;
+bool ppm_valid = true;
+#define IN_RANGE(x, low, up) (((x) >= (low)) && ((x) <= (up)))
+void PPM_ISR_Callback() {
+  // Dummy loop with 16 bit count wrap around
+  uint16_t rc_delay = TIM2->CNT;
+  TIM2->CNT = 0;
+  if (rc_delay > 3000) {
+    if (ppm_valid && ppm_count == PPM_NUM_CHANNELS) {
+      ppm_timeout = 0;
+      memcpy(ppm_captured_value, ppm_captured_value_buffer, sizeof(ppm_captured_value));
+    }
+    ppm_valid = true;
+    ppm_count = 0;
+  }
+  else if (ppm_count < PPM_NUM_CHANNELS && IN_RANGE(rc_delay, 900, 2100)){
+    timeout = 0;
+    ppm_captured_value_buffer[ppm_count++] = CLAMP(rc_delay, 1000, 2000) - 1000;
+  } else {
+    ppm_valid = false;
+  }
+}
+// SysTick executes once each ms
+void PPM_SysTick_Callback() {
+  ppm_timeout++;
+  // Stop after 500 ms without PPM signal
+  if(ppm_timeout > 500) {
+    int i;
+    for(i = 0; i < PPM_NUM_CHANNELS; i++) {
+      ppm_captured_value[i] = 500;
+    }
+    ppm_timeout = 0;
+  }
+}
+void PPM_Init() {
+  GPIO_InitTypeDef GPIO_InitStruct;
+  /*Configure GPIO pin : PA3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  __HAL_RCC_TIM2_CLK_ENABLE();
+  TimHandle.Instance = TIM2;
+  TimHandle.Init.Period = UINT16_MAX;
+  TimHandle.Init.Prescaler = (SystemCoreClock/DELAY_TIM_FREQUENCY_US)-1;;
+  TimHandle.Init.ClockDivision = 0;
+  TimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
+  HAL_TIM_Base_Init(&TimHandle);
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+  HAL_TIM_Base_Start(&TimHandle);
+}
+#endif
+#ifdef BUTTONS_RIGHT
+bool btn1 = false;
+bool btn2 = false;
+void BUTTONS_RIGHT_Init() {
+  GPIO_InitTypeDef GPIO_InitStruct;
+  /*Configure GPIO pin : PB10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  btn1 = !HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10);
+  GPIO_InitTypeDef GPIO_InitStruct2;
+  /*Configure GPIO pin : PB11 */
+  GPIO_InitStruct2.Pin = GPIO_PIN_11;
+  GPIO_InitStruct2.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct2.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  GPIO_InitStruct2.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct2);
+  btn2 = !HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11);
+}
+#endif
+
+#ifdef CONTROL_PWM
+//uint16_t pwm_captured_ch1_value = 500;
+uint16_t pwm_captured_ch1_value = 500;
+uint16_t pwm_captured_ch2_value = 500;
+uint32_t pwm_timeout = 0;
+
+#define IN_RANGE(x, low, up) (((x) >= (low)) && ((x) <= (up)))
+
+int PWM_Signal_Correct(x, max, min) {
+int PWM_Signal_Correct(int x, int max, int min) {
+  int outVal = 0;
+  if(x > -PWM_DEADBAND && x < PWM_DEADBAND) {
+    outVal = 0;
+  } else if(x > 0) {
+    outVal = (float)CLAMP(x-PWM_DEADBAND, 0, max - PWM_DEADBAND) / (max - PWM_DEADBAND) * 1000;
+  } else {
+    outVal = 0 - ((float)CLAMP(x+PWM_DEADBAND, min + PWM_DEADBAND, 0) / (min + PWM_DEADBAND) * 1000);
+  }
+  return outVal;
+}
+
+/*
+
+void PWM_ISR_CH1_Callback() {
+  // Dummy loop with 16 bit count wrap around
+  uint16_t rc_signal = TIM3->CNT;
+  TIM3->CNT = 0;
+  uint16_t rc_signal = TIM2->CNT;
+  TIM2->CNT = 0;
+
+  if (IN_RANGE(rc_signal, 900, 2100)){
+    timeout = 0;
+    pwm_timeout = 0;
+    pwm_captured_ch1_value = CLAMP(rc_signal, 1000, 2000) - 1000;
+  }
+}
+*/
+
+
+void PWM_ISR_CH2_Callback() {
+  // Dummy loop with 16 bit count wrap around
+  uint16_t rc_signal = TIM2->CNT;
+  TIM2->CNT = 0;
+  if (IN_RANGE(rc_signal, 900, 2100)){
+    timeout = 0;
+    pwm_timeout = 0;
+    pwm_captured_ch2_value = CLAMP(rc_signal, 1000, 2000) - 1000;
+  }
+}
+// SysTick executes once each ms
+void PWM_SysTick_Callback() {
+  pwm_timeout++;
+  // Stop after 500 ms without PPM signal
+  if(pwm_timeout > 500) {
+    //pwm_captured_ch1_value = 500;
+    pwm_captured_ch2_value = 500;
+    pwm_timeout = 0;
+  }
+}
+
+void PWM_Init() {
+  // PWM Timer (TIM2)
+  __HAL_RCC_TIM2_CLK_ENABLE();
+  TimHandle.Instance = TIM2;
+  TimHandle.Init.Period = UINT16_MAX;
+  TimHandle.Init.Prescaler = (SystemCoreClock/DELAY_TIM_FREQUENCY_US)-1;;
+  TimHandle.Init.ClockDivision = 0;
+  TimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
+  HAL_TIM_Base_Init(&TimHandle);
+
+
+  // Channel 1 (steering)
+  /*
+  GPIO_InitTypeDef GPIO_InitStruct2;
+  // Configure GPIO pin : PA2
+  GPIO_InitStruct2.Pin = GPIO_PIN_2;
+  GPIO_InitStruct2.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct2.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct2.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct2);
+
+  __HAL_RCC_TIM3_CLK_ENABLE();
+  TimHandle2.Instance = TIM3;
+  TimHandle2.Init.Period = UINT16_MAX;
+  TimHandle2.Init.Prescaler = (SystemCoreClock/DELAY_TIM_FREQUENCY_US)-1;;
+  TimHandle2.Init.ClockDivision = 0;
+  TimHandle2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  HAL_TIM_Base_Init(&TimHandle2);
+  // EXTI interrupt init
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+  HAL_TIM_Base_Start(&TimHandle2);
+*/
+
+  // Channel 2 (speed)
+
+  // Channel 2 (speed)
+  GPIO_InitTypeDef GPIO_InitStruct;
+  /*Configure GPIO pin : PA3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  __HAL_RCC_TIM2_CLK_ENABLE();
+  TimHandle.Instance = TIM2;
+  TimHandle.Init.Period = UINT16_MAX;
+  TimHandle.Init.Prescaler = (SystemCoreClock/DELAY_TIM_FREQUENCY_US)-1;;
+  TimHandle.Init.ClockDivision = 0;
+  TimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
+  HAL_TIM_Base_Init(&TimHandle);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+
+  // Start timer
+  HAL_TIM_Base_Start(&TimHandle);
+}
+#endif
+void Nunchuck_Init() {
+    //-- START -- init WiiNunchuck
+  i2cBuffer[0] = 0xF0;
+  i2cBuffer[1] = 0x55;
+  HAL_I2C_Master_Transmit(&hi2c2,0xA4,(uint8_t*)i2cBuffer, 2, 100);
+  HAL_Delay(10);
+  i2cBuffer[0] = 0xFB;
+  i2cBuffer[1] = 0x00;
+  HAL_I2C_Master_Transmit(&hi2c2,0xA4,(uint8_t*)i2cBuffer, 2, 100);
+  HAL_Delay(10);
+}
+void Nunchuck_Read() {
+  i2cBuffer[0] = 0x00;
+  HAL_I2C_Master_Transmit(&hi2c2,0xA4,(uint8_t*)i2cBuffer, 1, 100);
+  HAL_Delay(5);
+  if (HAL_I2C_Master_Receive(&hi2c2,0xA4,(uint8_t*)nunchuck_data, 6, 100) == HAL_OK) {
+    timeout = 0;
+  } else {
+    timeout++;
+  }
+  if (timeout > 3) {
+    HAL_Delay(50);
+    Nunchuck_Init();
+  }
+  //setScopeChannel(0, (int)nunchuck_data[0]);
+  //setScopeChannel(1, (int)nunchuck_data[1]);
+  //setScopeChannel(2, (int)nunchuck_data[5] & 1);
+  //setScopeChannel(3, ((int)nunchuck_data[5] >> 1) & 1);
+}
+  6 changes: 3 additions & 3 deletions6  
+Src/main.c
+Original file line number	Diff line number	Diff line change
+/*
+* This file is part of the hoverboard-firmware-hack project.
+*
+* Copyright (C) 2017-2018 Rene Hopf <renehopf@mac.com>
+* Copyright (C) 2017-2018 Nico Stute <crinq@crinq.de>
+* Copyright (C) 2017-2018 Niklas Fauth <niklas.fauth@kit.fail>
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+#include "stm32f1xx_hal.h"
+#include "defines.h"
+#include "setup.h"
+#include "config.h"
+#include <stdbool.h>
+//#include "hd44780.h"
+void SystemClock_Config(void);
+extern TIM_HandleTypeDef htim_left;
+extern TIM_HandleTypeDef htim_right;
+extern ADC_HandleTypeDef hadc1;
+extern ADC_HandleTypeDef hadc2;
+extern volatile adc_buf_t adc_buffer;
+//LCD_PCF8574_HandleTypeDef lcd;
+extern I2C_HandleTypeDef hi2c2;
+extern UART_HandleTypeDef huart2;
+int cmd1;  // normalized input values. -1000 to 1000
+int cmd2;
+int cmd3;
+typedef struct{
+   int16_t steer;
+   int16_t speed;
+   //uint32_t crc;
+} Serialcommand;
+volatile Serialcommand command;
+uint8_t button1, button2;
+int steer; // global variable for steering. -1000 to 1000
+int speed; // global variable for speed. -1000 to 1000
+float filter; // Filter limiting acceleration
+float speed_factor; // Reduction of speed
+extern volatile int pwml;  // global variable for pwm left. -1000 to 1000
+extern volatile int pwmr;  // global variable for pwm right. -1000 to 1000
+extern volatile int weakl; // global variable for field weakening left. -1000 to 1000
+extern volatile int weakr; // global variable for field weakening right. -1000 to 1000
+extern uint8_t buzzerFreq;    // global variable for the buzzer pitch. can be 1, 2, 3, 4, 5, 6, 7...
+extern uint8_t buzzerPattern; // global variable for the buzzer pattern. can be 1, 2, 3, 4, 5, 6, 7...
+extern uint8_t enable; // global variable for motor enable
+extern volatile uint32_t timeout; // global variable for timeout
+extern float batteryVoltage; // global variable for battery voltage
+uint32_t inactivity_timeout_counter;
+extern uint8_t nunchuck_data[6];
+#ifdef CONTROL_PPM
+extern volatile uint16_t ppm_captured_value[PPM_NUM_CHANNELS+1];
+#endif
+
+#ifdef CONTROL_PWM
+//extern volatile uint16_t pwm_captured_ch1_value;
+extern volatile uint16_t pwm_captured_ch1_value;
+extern volatile uint16_t pwm_captured_ch2_value;
+#endif
+
+#ifdef BUTTONS_RIGHT
+extern volatile bool btn1;  // Blue
+extern volatile bool btn2;  // Green
+#endif
+int milli_vel_error_sum = 0;
+void poweroff() {
+    if (abs(speed) < 20) {
+        buzzerPattern = 0;
+        enable = 0;
+        for (int i = 0; i < 8; i++) {
+            buzzerFreq = i;
+            HAL_Delay(100);
+        }
+        HAL_GPIO_WritePin(OFF_PORT, OFF_PIN, 0);
+        while(1) {}
+    }
+}
+int main(void) {
+  HAL_Init();
+  __HAL_RCC_AFIO_CLK_ENABLE();
+  HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+  /* System interrupt init*/
+  /* MemoryManagement_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(MemoryManagement_IRQn, 0, 0);
+  /* BusFault_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(BusFault_IRQn, 0, 0);
+  /* UsageFault_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(UsageFault_IRQn, 0, 0);
+  /* SVCall_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(SVCall_IRQn, 0, 0);
+  /* DebugMonitor_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DebugMonitor_IRQn, 0, 0);
+  /* PendSV_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(PendSV_IRQn, 0, 0);
+  /* SysTick_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+  SystemClock_Config();
+  __HAL_RCC_DMA1_CLK_DISABLE();
+  MX_GPIO_Init();
+  MX_TIM_Init();
+  MX_ADC1_Init();
+  MX_ADC2_Init();
+  #if defined(DEBUG_SERIAL_USART2) || defined(DEBUG_SERIAL_USART3)
+    UART_Init();
+    consoleLog("Test");
+  #endif
+  HAL_GPIO_WritePin(OFF_PORT, OFF_PIN, 1);
+  HAL_ADC_Start(&hadc1);
+  HAL_ADC_Start(&hadc2);
+  for (int i = 8; i >= 0; i--) {
+    buzzerFreq = i;
+    HAL_Delay(100);
+  }
+  buzzerFreq = 0;
+  filter = FILTER;
+  speed_factor = 1;
+  #ifdef BUTTONS_RIGHT
+    BUTTONS_RIGHT_Init();
+    if(btn1) {  // Kiddie-mode (Speed and Acceleration reduced by 50%)
+      HAL_Delay(1000);
+      buzzerFreq = 8;
+      HAL_Delay(100);
+      buzzerFreq = 0;
+      filter = filter * KIDDIE_MODE_REDUCTION;
+      speed_factor = KIDDIE_MODE_REDUCTION;
+    }
+    if(btn2) {  // Does nothing for now
+      HAL_Delay(1000);
+      buzzerFreq = 2;
+      HAL_Delay(100);
+      buzzerFreq = 0;
+    }
+  #endif
+  HAL_GPIO_WritePin(LED_PORT, LED_PIN, 1);
+  int lastSpeedL = 0, lastSpeedR = 0, lastSpeed = 0;
+  int speedL = 0, speedR = 0;
+  float direction = 1;
+  #ifdef CONTROL_PPM
+    PPM_Init();
+  #endif
+  #ifdef CONTROL_PWM
+    PWM_Init();
+  #endif
+  #ifdef CONTROL_NUNCHUCK
+    I2C_Init();
+    Nunchuck_Init();
+  #endif
+  #ifdef CONTROL_SERIAL_USART2
+    UART_Control_Init();
+    HAL_UART_Receive_DMA(&huart2, (uint8_t *)&command, 4);
+  #endif
+  #ifdef DEBUG_I2C_LCD
+    I2C_Init();
+    HAL_Delay(50);
+    lcd.pcf8574.PCF_I2C_ADDRESS = 0x27;
+      lcd.pcf8574.PCF_I2C_TIMEOUT = 5;
+      lcd.pcf8574.i2c = hi2c2;
+      lcd.NUMBER_OF_LINES = NUMBER_OF_LINES_2;
+      lcd.type = TYPE0;
+      LCD_Init(&lcd);
+      if(LCD_Init(&lcd)!=LCD_OK){
+          // error occured
+          //TODO while(1);
+      }
+    LCD_ClearDisplay(&lcd);
+    HAL_Delay(5);
+    LCD_SetLocation(&lcd, 0, 0);
+    LCD_WriteString(&lcd, "Hover V2.0");
+    LCD_SetLocation(&lcd, 0, 1);
+    LCD_WriteString(&lcd, "Initializing...");
+  #endif
+  float board_temp_adc_filtered = (float)adc_buffer.temp;
+  float board_temp_deg_c;
+  enable = 1;  // enable motors
+  while(1) {
+    HAL_Delay(DELAY_IN_MAIN_LOOP); //delay in ms
+    #ifdef CONTROL_NUNCHUCK
+      Nunchuck_Read();
+      cmd1 = CLAMP((nunchuck_data[0] - 127) * 8, -1000, 1000); // x - axis. Nunchuck joystick readings range 30 - 230
+      cmd2 = CLAMP((nunchuck_data[1] - 128) * 8, -1000, 1000); // y - axis
+      button1 = (uint8_t)nunchuck_data[5] & 1;
+      button2 = (uint8_t)(nunchuck_data[5] >> 1) & 1;
+    #endif
+    #ifdef CONTROL_PPM
+      cmd1 = CLAMP((ppm_captured_value[0] - 500) * 2, -1000, 1000);
+      cmd2 = CLAMP((ppm_captured_value[1] - 500) * 2, -1000, 1000);
+      button1 = ppm_captured_value[5] > 500;
+      float scale = ppm_captured_value[2] / 1000.0f;
+    #endif
+
+    #ifdef CONTROL_PWM
+      cmd1 = 0; // CLAMP(PWM_Signal_Correct((pwm_captured_ch1_value - 500) * 2, PWM_CH1_MAX, PWM_CH1_MIN), -1000, 1000);
+      cmd1 = CLAMP(PWM_Signal_Correct((pwm_captured_ch1_value - 500) * 2, PWM_CH1_MAX, PWM_CH1_MIN), -1000, 1000);
+      cmd2 = CLAMP(PWM_Signal_Correct((pwm_captured_ch2_value - 500) * 2, PWM_CH2_MAX, PWM_CH2_MIN), -1000, 1000);
+      button1 = 0;
+    #endif
+    #ifdef CONTROL_ADC
+      // ADC values range: 0-4095, see ADC-calibration in config.h
+      cmd1 = CLAMP(adc_buffer.l_tx2 - ADC1_MIN, 0, ADC1_MAX) / (ADC1_MAX / 1000.0f);  // ADC1
+      cmd2 = CLAMP(adc_buffer.l_rx2 - ADC2_MIN, 0, ADC2_MAX) / (ADC2_MAX / 1000.0f);  // ADC2
+      // use ADCs as button inputs:
+      button1 = (uint8_t)(adc_buffer.l_tx2 > 2000);  // ADC1
+      button2 = (uint8_t)(adc_buffer.l_rx2 > 2000);  // ADC2
+      timeout = 0;
+    #endif
+    #ifdef CONTROL_SERIAL_USART2
+      cmd1 = CLAMP((int16_t)command.steer, -1000, 1000);
+      cmd2 = CLAMP((int16_t)command.speed, -1000, 1000);
+      timeout = 0;
+    #endif
+    // ####### LOW-PASS FILTER #######
+    steer = steer * (1.0 - filter) + cmd1 * filter;
+    speed = speed * (1.0 - filter) + cmd2 * filter;
+    // Smoother braking
+    if((speed > 0 && speed < lastSpeed) || (speed < 0 && speed > lastSpeed)) { 
+      speed = lastSpeed * (1.0 - BRAKE_FILTER) + cmd2 * BRAKE_FILTER;
+    }
+    // Disable motors when throttle is in neutral
+    if(cmd2 == 0) {
+      enable = 0;
+    } else {
+      enable = 1;
+    }
+    // ####### MIXER #######
+    speedR = CLAMP(speed * SPEED_COEFFICIENT -  steer * STEER_COEFFICIENT, -1000, 1000) * speed_factor;
+    speedL = CLAMP(speed * SPEED_COEFFICIENT +  steer * STEER_COEFFICIENT, -1000, 1000) * speed_factor;
+    #ifdef ADDITIONAL_CODE
+      ADDITIONAL_CODE;
+    #endif
+    // ####### SET OUTPUTS #######
+    if ((speedL < lastSpeedL + 100 && speedL > lastSpeedL - 100) && (speedR < lastSpeedR + 100 && speedR > lastSpeedR - 100) && timeout < TIMEOUT) {
+    #ifdef INVERT_R_DIRECTION
+      pwmr = speedR;
+    #else
+      pwmr = -speedR;
+    #endif
+    #ifdef INVERT_L_DIRECTION
+      pwml = -speedL;
+    #else
+      pwml = speedL;
+    #endif
+    }
+    lastSpeed = speed;
+    lastSpeedL = speedL;
+    lastSpeedR = speedR;
+    if (inactivity_timeout_counter % 25 == 0) {
+      // ####### CALC BOARD TEMPERATURE #######
+      board_temp_adc_filtered = board_temp_adc_filtered * 0.99 + (float)adc_buffer.temp * 0.01;
+      board_temp_deg_c = ((float)TEMP_CAL_HIGH_DEG_C - (float)TEMP_CAL_LOW_DEG_C) / ((float)TEMP_CAL_HIGH_ADC - (float)TEMP_CAL_LOW_ADC) * (board_temp_adc_filtered - (float)TEMP_CAL_LOW_ADC) + (float)TEMP_CAL_LOW_DEG_C;
+      
+      // ####### DEBUG SERIAL OUT #######
+      #ifdef CONTROL_ADC
+        setScopeChannel(0, (int)adc_buffer.l_tx2);  // 1: ADC1
+        setScopeChannel(1, (int)adc_buffer.l_rx2);  // 2: ADC2
+      #endif
+      #ifdef CONTROL_PWM
+        setScopeChannel(0, 0);//pwm_captured_ch1_value);  // 1: CH1
+        setScopeChannel(0, pwm_captured_ch1_value);  // 1: CH1
+        setScopeChannel(1, pwm_captured_ch2_value);  // 2: CH2
+      #endif
+      setScopeChannel(2, (int)speedR);  // 3: output speed: 0-1000
+      setScopeChannel(3, (int)speedL);  // 4: output speed: 0-1000
+      setScopeChannel(4, (int)adc_buffer.batt1);  // 5: for battery voltage calibration
+      setScopeChannel(5, (int)(batteryVoltage * 100.0f));  // 6: for verifying battery voltage calibration
+      setScopeChannel(6, (int)board_temp_adc_filtered);  // 7: for board temperature calibration
+      setScopeChannel(7, (int)board_temp_deg_c);  // 8: for verifying board temperature calibration
+      consoleScope();
+    }
+    // ####### POWEROFF BY POWER-BUTTON #######
+    if (HAL_GPIO_ReadPin(BUTTON_PORT, BUTTON_PIN) && weakr == 0 && weakl == 0) {
+      enable = 0;
+      while (HAL_GPIO_ReadPin(BUTTON_PORT, BUTTON_PIN)) {}
+      poweroff();
+    }
+    // ####### BEEP AND EMERGENCY POWEROFF #######
+    if ((TEMP_POWEROFF_ENABLE && board_temp_deg_c >= TEMP_POWEROFF && abs(speed) < 20) || (batteryVoltage < ((float)BAT_LOW_DEAD * (float)BAT_NUMBER_OF_CELLS) && abs(speed) < 20)) {  // poweroff before mainboard burns OR low bat 3
+      poweroff();
+    } else if (TEMP_WARNING_ENABLE && board_temp_deg_c >= TEMP_WARNING) {  // beep if mainboard gets hot
+      buzzerFreq = 4;
+      buzzerPattern = 1;
+    } else if (batteryVoltage < ((float)BAT_LOW_LVL1 * (float)BAT_NUMBER_OF_CELLS) && batteryVoltage > ((float)BAT_LOW_LVL2 * (float)BAT_NUMBER_OF_CELLS) && BAT_LOW_LVL1_ENABLE) {  // low bat 1: slow beep
+      buzzerFreq = 5;
+      buzzerPattern = 42;
+    } else if (batteryVoltage < ((float)BAT_LOW_LVL2 * (float)BAT_NUMBER_OF_CELLS) && batteryVoltage > ((float)BAT_LOW_DEAD * (float)BAT_NUMBER_OF_CELLS) && BAT_LOW_LVL2_ENABLE) {  // low bat 2: fast beep
+      buzzerFreq = 5;
+      buzzerPattern = 6;
+    } else if (BEEPS_BACKWARD && speed < -50) {  // backward beep
+      buzzerFreq = 5;
+      buzzerPattern = 1;
+    } else {  // do not beep
+      buzzerFreq = 0;
+      buzzerPattern = 0;
+    }
+    // ####### INACTIVITY TIMEOUT #######
+    if (abs(speedL) > 50 || abs(speedR) > 50) {
+      inactivity_timeout_counter = 0;
+    } else {
+      inactivity_timeout_counter ++;
+    }
+    if (inactivity_timeout_counter > (INACTIVITY_TIMEOUT * 60 * 1000) / (DELAY_IN_MAIN_LOOP + 1)) {  // rest of main loop needs maybe 1ms
+      poweroff();
+    }
+  }
+}
+/** System Clock Configuration
+*/
+void SystemClock_Config(void) {
+  RCC_OscInitTypeDef RCC_OscInitStruct;
+  RCC_ClkInitTypeDef RCC_ClkInitStruct;
+  RCC_PeriphCLKInitTypeDef PeriphClkInit;
+  /**Initializes the CPU, AHB and APB busses clocks
+    */
+  RCC_OscInitStruct.OscillatorType      = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState            = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = 16;
+  RCC_OscInitStruct.PLL.PLLState        = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource       = RCC_PLLSOURCE_HSI_DIV2;
+  RCC_OscInitStruct.PLL.PLLMUL          = RCC_PLL_MUL16;
+  HAL_RCC_OscConfig(&RCC_OscInitStruct);
+  /**Initializes the CPU, AHB and APB busses clocks
+    */
+  RCC_ClkInitStruct.ClockType      = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2);
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.AdcClockSelection    = RCC_ADCPCLK2_DIV8;  // 8 MHz
+  HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
+  /**Configure the Systick interrupt time
+    */
+  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq() / 1000);
+  /**Configure the Systick
+    */
+  HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
+  /* SysTick_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+  4 changes: 2 additions & 2 deletions4  
+Src/stm32f1xx_it.c
+Original file line number	Diff line number	Diff line change
+/**
+  ******************************************************************************
+  * @file    stm32f1xx_it.c
+  * @brief   Interrupt Service Routines.
+  ******************************************************************************
+  *
+  * COPYRIGHT(c) 2017 STMicroelectronics
+  *
+  * Redistribution and use in source and binary forms, with or without modification,
+  * are permitted provided that the following conditions are met:
+  *   1. Redistributions of source code must retain the above copyright notice,
+  *      this list of conditions and the following disclaimer.
+  *   2. Redistributions in binary form must reproduce the above copyright notice,
+  *      this list of conditions and the following disclaimer in the documentation
+  *      and/or other materials provided with the distribution.
+  *   3. Neither the name of STMicroelectronics nor the names of its contributors
+  *      may be used to endorse or promote products derived from this software
+  *      without specific prior written permission.
+  *
+  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  *
+  ******************************************************************************
+  */
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f1xx_hal.h"
+#include "stm32f1xx.h"
+#include "stm32f1xx_it.h"
+#include "config.h"
+extern DMA_HandleTypeDef hdma_i2c2_rx;
+extern DMA_HandleTypeDef hdma_i2c2_tx;
+extern I2C_HandleTypeDef hi2c2;
+extern DMA_HandleTypeDef hdma_usart2_rx;
+extern DMA_HandleTypeDef hdma_usart2_tx;
+/* USER CODE BEGIN 0 */
+/* USER CODE END 0 */
+/* External variables --------------------------------------------------------*/
+/******************************************************************************/
+/*            Cortex-M3 Processor Interruption and Exception Handlers         */
+/******************************************************************************/
+/**
+* @brief This function handles Non maskable interrupt.
+*/
+void NMI_Handler(void) {
+  /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
+  /* USER CODE END NonMaskableInt_IRQn 0 */
+  /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
+  /* USER CODE END NonMaskableInt_IRQn 1 */
+}
+/**
+* @brief This function handles Hard fault interrupt.
+*/
+void HardFault_Handler(void) {
+  /* USER CODE BEGIN HardFault_IRQn 0 */
+  /* USER CODE END HardFault_IRQn 0 */
+  while(1) {
+  }
+  /* USER CODE BEGIN HardFault_IRQn 1 */
+  /* USER CODE END HardFault_IRQn 1 */
+}
+/**
+* @brief This function handles Memory management fault.
+*/
+void MemManage_Handler(void) {
+  /* USER CODE BEGIN MemoryManagement_IRQn 0 */
+  /* USER CODE END MemoryManagement_IRQn 0 */
+  while(1) {
+  }
+  /* USER CODE BEGIN MemoryManagement_IRQn 1 */
+  /* USER CODE END MemoryManagement_IRQn 1 */
+}
+/**
+* @brief This function handles Prefetch fault, memory access fault.
+*/
+void BusFault_Handler(void) {
+  /* USER CODE BEGIN BusFault_IRQn 0 */
+  /* USER CODE END BusFault_IRQn 0 */
+  while(1) {
+  }
+  /* USER CODE BEGIN BusFault_IRQn 1 */
+  /* USER CODE END BusFault_IRQn 1 */
+}
+/**
+* @brief This function handles Undefined instruction or illegal state.
+*/
+void UsageFault_Handler(void) {
+  /* USER CODE BEGIN UsageFault_IRQn 0 */
+  /* USER CODE END UsageFault_IRQn 0 */
+  while(1) {
+  }
+  /* USER CODE BEGIN UsageFault_IRQn 1 */
+  /* USER CODE END UsageFault_IRQn 1 */
+}
+/**
+* @brief This function handles System service call via SWI instruction.
+*/
+void SVC_Handler(void) {
+  /* USER CODE BEGIN SVCall_IRQn 0 */
+  /* USER CODE END SVCall_IRQn 0 */
+  /* USER CODE BEGIN SVCall_IRQn 1 */
+  /* USER CODE END SVCall_IRQn 1 */
+}
+/**
+* @brief This function handles Debug monitor.
+*/
+void DebugMon_Handler(void) {
+  /* USER CODE BEGIN DebugMonitor_IRQn 0 */
+  /* USER CODE END DebugMonitor_IRQn 0 */
+  /* USER CODE BEGIN DebugMonitor_IRQn 1 */
+  /* USER CODE END DebugMonitor_IRQn 1 */
+}
+/**
+* @brief This function handles Pendable request for system service.
+*/
+void PendSV_Handler(void) {
+  /* USER CODE BEGIN PendSV_IRQn 0 */
+  /* USER CODE END PendSV_IRQn 0 */
+  /* USER CODE BEGIN PendSV_IRQn 1 */
+  /* USER CODE END PendSV_IRQn 1 */
+}
+/**
+* @brief This function handles System tick timer.
+*/
+#ifdef CONTROL_PPM
+void PPM_SysTick_Callback(void);
+#endif
+#ifdef CONTROL_PWM
+void PWM_SysTick_Callback(void);
+#endif
+void SysTick_Handler(void) {
+  /* USER CODE BEGIN SysTick_IRQn 0 */
+  /* USER CODE END SysTick_IRQn 0 */
+  HAL_IncTick();
+  HAL_SYSTICK_IRQHandler();
+  /* USER CODE BEGIN SysTick_IRQn 1 */
+#ifdef CONTROL_PPM
+  PPM_SysTick_Callback();
+#endif
+#ifdef CONTROL_PWM
+  PWM_SysTick_Callback();
+#endif
+  /* USER CODE END SysTick_IRQn 1 */
+}
+#ifdef CONTROL_NUNCHUCK
+extern I2C_HandleTypeDef hi2c2;
+void I2C1_EV_IRQHandler(void)
+{
+  HAL_I2C_EV_IRQHandler(&hi2c2);
+}
+void I2C1_ER_IRQHandler(void)
+{
+  HAL_I2C_ER_IRQHandler(&hi2c2);
+}
+/**
+* @brief This function handles DMA1 channel4 global interrupt.
+*/
+void DMA1_Channel4_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel4_IRQn 0 */
+  /* USER CODE END DMA1_Channel4_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_i2c2_tx);
+  /* USER CODE BEGIN DMA1_Channel4_IRQn 1 */
+  /* USER CODE END DMA1_Channel4_IRQn 1 */
+}
+/**
+* @brief This function handles DMA1 channel5 global interrupt.
+*/
+void DMA1_Channel5_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel5_IRQn 0 */
+  /* USER CODE END DMA1_Channel5_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_i2c2_rx);
+  /* USER CODE BEGIN DMA1_Channel5_IRQn 1 */
+  /* USER CODE END DMA1_Channel5_IRQn 1 */
+}
+#endif
+#ifdef CONTROL_PPM
+void EXTI3_IRQHandler(void)
+{
+    PPM_ISR_Callback();
+    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
+}
+#endif
+#ifdef CONTROL_PWM
+void EXTI3_IRQHandler(void)
+{
+    PWM_ISR_CH2_Callback();
+    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
+}
+/*
+
+void EXTI2_IRQHandler(void)
+{
+    PWM_ISR_CH1_Callback();
+    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_2);
+}*/
+}
+
+#endif
+
+#ifdef CONTROL_SERIAL_USART2
+void DMA1_Channel6_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel4_IRQn 0 */
+  /* USER CODE END DMA1_Channel4_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart2_rx);
+  /* USER CODE BEGIN DMA1_Channel4_IRQn 1 */
+  /* USER CODE END DMA1_Channel4_IRQn 1 */
+}
+/**
+* @brief This function handles DMA1 channel5 global interrupt.
+*/
+void DMA1_Channel7_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel5_IRQn 0 */
+  /* USER CODE END DMA1_Channel5_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart2_tx);
+  /* USER CODE BEGIN DMA1_Channel5_IRQn 1 */
+  /* USER CODE END DMA1_Channel5_IRQn 1 */
+}
+#endif
+/******************************************************************************/
+/* STM32F1xx Peripheral Interrupt Handlers                                    */
+/* Add here the Interrupt Handlers for the used peripherals.                  */
+/* For the available peripheral interrupt handler names,                      */
+/* please refer to the startup file (startup_stm32f1xx.s).                    */
+/******************************************************************************/
+/* USER CODE BEGIN 1 */
+/* USER CODE END 1 */
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
